@@ -7,3 +7,35 @@ repositories {
 dependencies {
     groovy group: 'org.codehaus.groovy', name: 'groovy', version: '1.8.6'
 }
+
+jar {
+  appendix "code"
+}
+
+task mainJar(type: Jar) {
+  from jar
+  from "src/main/stuff", {
+    filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [name: "foo"]
+  }
+}
+
+artifacts {
+  runtime mainJar
+}
+
+configurations {
+  // The groovy plugin adds the “jar” task as a publication to the “runtime” & “archives” configuration
+  // which is kind of like the “main” publication.
+  def codeJarArtifact = archives.artifacts.find { it.file == jar.archivePath }
+  assert archives.artifacts.removeAll { it.file == codeJarArtifact.file }
+  assert runtime.artifacts.removeAll { it.file == codeJarArtifact.file }
+  
+  // Make our main jar the main artifact
+  assert archives.artifacts.add(runtime.artifacts.find { it.file == mainJar.archivePath })
+  
+  // Not strictly needed, but allows a project dependency on this specific jar if required
+  // dependencies { compile project(path: "subproj", configuration: "codeJar") }
+  codeJar.extendsFrom runtime
+  codeJar.artifacts.add(codeJarArtifact)
+}
+
